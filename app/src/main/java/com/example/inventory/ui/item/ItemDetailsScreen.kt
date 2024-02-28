@@ -40,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,191 +50,196 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.inventory.InventoryTopAppBar
 import com.example.inventory.R
 import com.example.inventory.data.Item
+import com.example.inventory.ui.AppViewModelProvider
 import com.example.inventory.ui.navigation.NavigationDestination
 import com.example.inventory.ui.theme.InventoryTheme
 
 object ItemDetailsDestination : NavigationDestination {
-    override val route = "item_details"
-    override val titleRes = R.string.item_detail_title
-    const val itemIdArg = "itemId"
-    val routeWithArgs = "$route/{$itemIdArg}"
+  override val route = "item_details"
+  override val titleRes = R.string.item_detail_title
+  const val itemIdArg = "itemId"
+  val routeWithArgs = "$route/{$itemIdArg}"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemDetailsScreen(
-    navigateToEditItem: (Int) -> Unit,
-    navigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+  navigateToEditItem: (Int) -> Unit,
+  navigateBack: () -> Unit,
+  modifier: Modifier = Modifier,
+  viewModel: ItemDetailsViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
-    Scaffold(
-        topBar = {
-            InventoryTopAppBar(
-                title = stringResource(ItemDetailsDestination.titleRes),
-                canNavigateBack = true,
-                navigateUp = navigateBack
-            )
-        }, floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navigateToEditItem(0) },
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_large))
+  val uiState = viewModel.uiState.collectAsState()
 
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.edit_item_title),
-                )
-            }
-        }, modifier = modifier
-    ) { innerPadding ->
-        ItemDetailsBody(
-            itemDetailsUiState = ItemDetailsUiState(),
-            onSellItem = { },
-            onDelete = { },
-            modifier = Modifier
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+  Scaffold(
+    topBar = {
+      InventoryTopAppBar(
+        title = stringResource(ItemDetailsDestination.titleRes),
+        canNavigateBack = true,
+        navigateUp = navigateBack
+      )
+    }, floatingActionButton = {
+      FloatingActionButton(
+        onClick = { navigateToEditItem(0) },
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_large))
+
+      ) {
+        Icon(
+          imageVector = Icons.Default.Edit,
+          contentDescription = stringResource(R.string.edit_item_title),
         )
-    }
+      }
+    }, modifier = modifier
+  ) { innerPadding ->
+    ItemDetailsBody(
+      itemDetailsUiState = uiState.value,
+      onSellItem = { },
+      onDelete = { },
+      modifier = Modifier
+          .padding(innerPadding)
+          .verticalScroll(rememberScrollState())
+    )
+  }
 }
 
 @Composable
 private fun ItemDetailsBody(
-    itemDetailsUiState: ItemDetailsUiState,
-    onSellItem: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+  itemDetailsUiState: ItemDetailsUiState,
+  onSellItem: () -> Unit,
+  onDelete: () -> Unit,
+  modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(dimensionResource(id = R.dimen.padding_medium)),
-        verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.padding_medium))
-    ) {
-        var deleteConfirmationRequired by rememberSaveable { mutableStateOf(false) }
+  Column(
+    modifier = modifier.padding(dimensionResource(id = R.dimen.padding_medium)),
+    verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.padding_medium))
+  ) {
+    var deleteConfirmationRequired by rememberSaveable { mutableStateOf(false) }
 
-        ItemDetails(
-            item = itemDetailsUiState.itemDetails.toItem(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = onSellItem,
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.small,
-            enabled = true
-        ) {
-            Text(stringResource(R.string.sell))
-        }
-        OutlinedButton(
-            onClick = { deleteConfirmationRequired = true },
-            shape = MaterialTheme.shapes.small,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.delete))
-        }
-        if (deleteConfirmationRequired) {
-            DeleteConfirmationDialog(
-                onDeleteConfirm = {
-                    deleteConfirmationRequired = false
-                    onDelete()
-                },
-                onDeleteCancel = { deleteConfirmationRequired = false },
-                modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_medium))
-            )
-        }
+    ItemDetails(
+      item = itemDetailsUiState.itemDetails.toItem(),
+      modifier = Modifier.fillMaxWidth()
+    )
+    Button(
+      onClick = onSellItem,
+      modifier = Modifier.fillMaxWidth(),
+      shape = MaterialTheme.shapes.small,
+      enabled = true
+    ) {
+      Text(stringResource(R.string.sell))
     }
+    OutlinedButton(
+      onClick = { deleteConfirmationRequired = true },
+      shape = MaterialTheme.shapes.small,
+      modifier = Modifier.fillMaxWidth()
+    ) {
+      Text(stringResource(R.string.delete))
+    }
+    if (deleteConfirmationRequired) {
+      DeleteConfirmationDialog(
+        onDeleteConfirm = {
+          deleteConfirmationRequired = false
+          onDelete()
+        },
+        onDeleteCancel = { deleteConfirmationRequired = false },
+        modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_medium))
+      )
+    }
+  }
 }
 
 @Composable
 fun ItemDetails(
-    item: Item, modifier: Modifier = Modifier
+  item: Item, modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        )
+  Card(
+    modifier = modifier,
+    colors = CardDefaults.cardColors(
+      containerColor = MaterialTheme.colorScheme.primaryContainer,
+      contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    )
+  ) {
+    Column(
+      modifier = Modifier
+          .fillMaxWidth()
+          .padding(dimensionResource(id = R.dimen.padding_medium)),
+      verticalArrangement = Arrangement.spacedBy(
+        dimensionResource(id = R.dimen.padding_medium)
+      )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(dimensionResource(id = R.dimen.padding_medium)),
-            verticalArrangement = Arrangement.spacedBy(
-                dimensionResource(id = R.dimen.padding_medium)
-            )
-        ) {
-            ItemDetailsRow(
-                labelResID = R.string.item,
-                itemDetail = item.name,
-                modifier = Modifier.padding(
-                    horizontal = dimensionResource(id = R.dimen.padding_medium)
-                )
-            )
-            ItemDetailsRow(
-                labelResID = R.string.quantity_in_stock,
-                itemDetail = item.quantity.toString(),
-                modifier = Modifier.padding(
-                    horizontal = dimensionResource(id = R.dimen.padding_medium)
-                )
-            )
-            ItemDetailsRow(
-                labelResID = R.string.price,
-                itemDetail = item.formatedPrice(),
-                modifier = Modifier.padding(
-                    horizontal = dimensionResource(id = R.dimen.padding_medium)
-                )
-            )
-        }
+      ItemDetailsRow(
+        labelResID = R.string.item,
+        itemDetail = item.name,
+        modifier = Modifier.padding(
+          horizontal = dimensionResource(id = R.dimen.padding_medium)
+        )
+      )
+      ItemDetailsRow(
+        labelResID = R.string.quantity_in_stock,
+        itemDetail = item.quantity.toString(),
+        modifier = Modifier.padding(
+          horizontal = dimensionResource(id = R.dimen.padding_medium)
+        )
+      )
+      ItemDetailsRow(
+        labelResID = R.string.price,
+        itemDetail = item.formatedPrice(),
+        modifier = Modifier.padding(
+          horizontal = dimensionResource(id = R.dimen.padding_medium)
+        )
+      )
     }
+  }
 }
 
 @Composable
 private fun ItemDetailsRow(
-    @StringRes labelResID: Int, itemDetail: String, modifier: Modifier = Modifier
+  @StringRes labelResID: Int, itemDetail: String, modifier: Modifier = Modifier
 ) {
-    Row(modifier = modifier) {
-        Text(stringResource(labelResID))
-        Spacer(modifier = Modifier.weight(1f))
-        Text(text = itemDetail, fontWeight = FontWeight.Bold)
-    }
+  Row(modifier = modifier) {
+    Text(stringResource(labelResID))
+    Spacer(modifier = Modifier.weight(1f))
+    Text(text = itemDetail, fontWeight = FontWeight.Bold)
+  }
 }
 
 @Composable
 private fun DeleteConfirmationDialog(
-    onDeleteConfirm: () -> Unit,
-    onDeleteCancel: () -> Unit,
-    modifier: Modifier = Modifier
+  onDeleteConfirm: () -> Unit,
+  onDeleteCancel: () -> Unit,
+  modifier: Modifier = Modifier
 ) {
-    AlertDialog(onDismissRequest = { /* Do nothing */ },
-        title = { Text(stringResource(R.string.attention)) },
-        text = { Text(stringResource(R.string.delete_question)) },
-        modifier = modifier,
-        dismissButton = {
-            TextButton(onClick = onDeleteCancel) {
-                Text(stringResource(R.string.no))
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDeleteConfirm) {
-                Text(stringResource(R.string.yes))
-            }
-        })
+  AlertDialog(onDismissRequest = { /* Do nothing */ },
+    title = { Text(stringResource(R.string.attention)) },
+    text = { Text(stringResource(R.string.delete_question)) },
+    modifier = modifier,
+    dismissButton = {
+      TextButton(onClick = onDeleteCancel) {
+        Text(stringResource(R.string.no))
+      }
+    },
+    confirmButton = {
+      TextButton(onClick = onDeleteConfirm) {
+        Text(stringResource(R.string.yes))
+      }
+    })
 }
 
 @Preview(showBackground = true)
 @Composable
 fun ItemDetailsScreenPreview() {
-    InventoryTheme {
-        ItemDetailsBody(
-            ItemDetailsUiState(
-                outOfStock = true,
-                itemDetails = ItemDetails(1, "Pen", "$100", "10")
-            ),
-            onSellItem = {},
-            onDelete = {}
-        )
-    }
+  InventoryTheme {
+    ItemDetailsBody(
+      ItemDetailsUiState(
+        outOfStock = true,
+        itemDetails = ItemDetails(1, "Pen", "$100", "10")
+      ),
+      onSellItem = {},
+      onDelete = {}
+    )
+  }
 }
